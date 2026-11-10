@@ -343,7 +343,8 @@ WHITELIST = {
     'video_film_production','cabaret','choir','circus','country_dance_hall','dance_club',
     'jazz_and_blues','marching_band','musical_band_orchestras_and_symphonies','circus_school',
     'mass_media','landscaping','landscape_architect','blacksmiths','community_book_boxes',
-    'screen_printing_t_shirt_printing','orchard'
+    'screen_printing_t_shirt_printing','orchard',
+    'user_submitted'
 }
 
 # Termer som egentligen motsvarar whitelist, men kommer in med stavning/format-varianter.
@@ -624,7 +625,15 @@ def main():
                 continue
 
             # Build the final feature (properties + geometry). Website/comments are optional fields.
-            category = normalize_category(rec.get("category"))
+            overture_cat = (rec.get("overture_category") or "").strip()
+            if overture_cat:
+                category = normalize_category(overture_cat)
+                source = "user_submitted"
+                category2 = "Startup user submitted"
+            else:
+                category = normalize_category(rec.get("category"))
+                source = None
+                category2 = None
             website  = normalize_website(rec.get("website"))
             comments = (rec.get("comments") or "").strip()
             city     = (rec.get("city") or "").strip()
@@ -635,6 +644,10 @@ def main():
                 "city": city,
                 "color": color_for(category),
             }
+            if source:
+                props["source"] = source
+            if category2:
+                props["category2"] = category2
             if website:
                 props["website"] = website
             if comments:

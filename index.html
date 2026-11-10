@@ -7,10 +7,10 @@
 
   <!-- Leaflet core CSS & JS (1.9.4). Kept via CDN for a zero-build, static-friendly setup. -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- Turf is optional; left in case we later add client-side spatial ops (buffer, intersect, etc.). -->
-  <script defer src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
   <style>
     /* Full-viewport map canvas. We keep a minimal custom UI on top. */
@@ -29,9 +29,9 @@
 
     /* Sliding panel for categories, legend and export buttons. Hidden by default. */
     #panel {
-      position: absolute; top: 75px; right: 10px; width: 250px; max-height: calc(100% - 80px);
+      position: absolute; top: 75px; right: 10px; width: 250px; max-height: calc(100% - 120px);
       background: #fff; border: 1px solid #aaa; padding: 10px; font-family: sans-serif; font-size: 14px;
-      z-index: 1000; display: none; overflow-y: auto;
+      z-index: 1000; display: none; overflow-y: auto; padding-bottom: 20px;
     }
 
     /* Legend collapse/expand UI */
@@ -206,6 +206,7 @@ function fetchJSON(url){ return fetch(noCacheUrl(url), {cache:'no-store'}).then(
 async function listDirectory(url){
   try {
     const html = await fetchText(url);
+    const baseUrl = new URL(url, window.location.href).toString();
     const div = document.createElement('div');
     div.innerHTML = html;
     const links = Array.from(div.querySelectorAll('a'))
@@ -213,7 +214,7 @@ async function listDirectory(url){
       .filter(href => href && href !== '../')
       .map(href => {
         // Resolve to absolute path under the directory URL (works both locally and on a server).
-        try { return new URL(href, url).toString(); } catch(e){ return null; }
+        try { return new URL(href, baseUrl).toString(); } catch(e){ return null; }
       })
       .filter(Boolean);
     return links;
@@ -420,7 +421,9 @@ function renderFeatures(data, selectedCategories, selectedCity) {
   var filtered = data.features.filter(function(f){
     var p = f.properties || {};
     var fCityCanonical = canonicalCity(p.city || "");
-    return selectedCategories.indexOf(p.category) !== -1 &&
+    var matchCat = selectedCategories.indexOf(p.category) !== -1 ||
+                   (p.category2 && selectedCategories.indexOf(p.category2) !== -1);
+    return matchCat &&
            (selectedCanonical === "All" || norm(fCityCanonical) === norm(selectedCanonical));
   });
 
@@ -429,6 +432,17 @@ function renderFeatures(data, selectedCategories, selectedCity) {
     pointToLayer: function (feature, latlng) {
       var p = feature.properties || {};
       var color = p.color || 'gray';
+      if (p.source === 'user_submitted') {
+        var size = 14;
+        var icon = L.divIcon({
+          className: '',
+          html: '<div style="width:'+size+'px;height:'+size+'px;background:'+color+';border:none;opacity:0.7;transform:translate(-50%,-50%);"></div>',
+          iconSize: [size, size],
+          iconAnchor: [size/2, size/2],
+          popupAnchor: [0, -size/2]
+        });
+        return L.marker(latlng, { icon: icon });
+      }
       return L.circleMarker(latlng, { radius:8, fillColor:color, color:color, weight:1, opacity:1, fillOpacity:0.6 });
     },
     onEachFeature: function (feature, layer) {
@@ -463,13 +477,13 @@ function renderFeatures(data, selectedCategories, selectedCity) {
  */
 function setupUI(data) {
   // Unique categories present in the data.
-  var allCats = Array.from(
-    new Set(
-      data.features
-        .map(function (f) { return (f.properties || {}).category; })
-        .filter(Boolean)
-    )
-  );
+  var catSet = new Set();
+  data.features.forEach(function(f){
+    var p = f.properties || {};
+    if (p.category) catSet.add(p.category);
+    if (p.category2) catSet.add(p.category2);
+  });
+  var allCats = Array.from(catSet);
 
   // Sort: non-Startup first, then Startup*, alphabetical (sv locale).
   allCats.sort(function (a, b) {

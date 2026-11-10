@@ -253,7 +253,8 @@ WHITELIST = {
     'video_film_production','cabaret','choir','circus','country_dance_hall','dance_club',
     'jazz_and_blues','marching_band','musical_band_orchestras_and_symphonies','circus_school',
     'mass_media','landscaping','landscape_architect','blacksmiths','community_book_boxes',
-    'screen_printing_t_shirt_printing','orchard'
+    'screen_printing_t_shirt_printing','orchard',
+    'user_submitted'
 }
 
 NORMALIZATION_OVERRIDES = {
@@ -388,8 +389,12 @@ def main():
         else:
             print("ℹ️  Boundary-filtret är avstängt via setting (USE_BOUNDARY=False).")
 
-    # Hämta ALLA CSV rekursivt
+    # Hämta ALLA CSV rekursivt + custom_places.csv
     csv_paths = sorted(INPUT_DIR.rglob("*.csv"))
+    custom_path = Path("cleaned_data") / "custom_places.csv"
+    if custom_path.exists():
+        csv_paths.append(custom_path)
+        print(f"📌 Inkluderar custom_places.csv ({custom_path})")
     print(f"📄 Hittade {len(csv_paths)} CSV-fil(er).")
     if not csv_paths:
         print(f"❌ Inga CSV-filer i {INPUT_DIR}/", file=sys.stderr); sys.exit(1)
@@ -403,23 +408,25 @@ def main():
     out_skipped = OUTPUT_DIR / f"skipped_rows_{ts}.csv"
 
     for p in csv_paths:
+        is_custom = (p == custom_path)
         rows = read_csv_file(p)
         total += len(rows)
         for idx, rec in enumerate(rows, start=2):
-            # 1) Endast praesidia == 1
-            pra = (rec.get("praesidia") or "").strip()
-            if not (pra == "1" or pra == 1):
-                skip_praesidia += 1
-                skipped_rows.append({
-                    "source_file": str(p.relative_to(INPUT_DIR)),
-                    "row": idx,
-                    "name": (rec.get("name") or "").strip(),
-                    "city": (rec.get("city") or "").strip(),
-                    "category": (rec.get("category") or "").strip(),
-                    "website": (rec.get("website") or "").strip(),
-                    "reason": "praesidia != 1",
-                })
-                continue
+            # 1) Endast praesidia == 1 (skippa check för custom_places)
+            if not is_custom:
+                pra = (rec.get("praesidia") or "").strip()
+                if not (pra == "1" or pra == 1):
+                    skip_praesidia += 1
+                    skipped_rows.append({
+                        "source_file": p.name if is_custom else str(p.relative_to(INPUT_DIR)) if not is_custom else p.name,
+                        "row": idx,
+                        "name": (rec.get("name") or "").strip(),
+                        "city": (rec.get("city") or "").strip(),
+                        "category": (rec.get("category") or "").strip(),
+                        "website": (rec.get("website") or "").strip(),
+                        "reason": "praesidia != 1",
+                    })
+                    continue
 
             # 2) Drop delete == 2 (behåll regel)
             delv = rec.get("delete")
@@ -434,7 +441,7 @@ def main():
                 # Skippa om coords krävs men saknas
                 skip_coord += 1
                 skipped_rows.append({
-                    "source_file": str(p.relative_to(INPUT_DIR)),
+                    "source_file": p.name if is_custom else str(p.relative_to(INPUT_DIR)),
                     "row": idx,
                     "name": (rec.get("name") or "").strip(),
                     "city": (rec.get("city") or "").strip(),
@@ -456,7 +463,7 @@ def main():
             if has_coords and use_boundary and not is_name_whitelisted(name) and not point_inside_any_boundary(lon, lat, boundary_polygons):
                 skip_coord += 1
                 skipped_rows.append({
-                    "source_file": str(p.relative_to(INPUT_DIR)),
+                    "source_file": p.name if is_custom else str(p.relative_to(INPUT_DIR)),
                     "row": idx,
                     "name": name,
                     "city": (rec.get("city") or "").strip(),
@@ -471,7 +478,15 @@ def main():
                 continue
 
             # 5) Bygg feature
-            category = normalize_category(rec.get("category"))
+            overture_cat = (rec.get("overture_category") or "").strip()
+            if overture_cat:
+                category = normalize_category(overture_cat)
+                source = "user_submitted"
+                category2 = "Startup user submitted"
+            else:
+                category = normalize_category(rec.get("category"))
+                source = None
+                category2 = None
             website  = normalize_website(rec.get("website"))
             comments = (rec.get("comments") or "").strip()
             city     = (rec.get("city") or "").strip()
@@ -482,6 +497,10 @@ def main():
                 "city": city,
                 "color": color_for(category),
             }
+            if source:
+                props["source"] = source
+            if category2:
+                props["category2"] = category2
             if website:
                 props["website"] = website
             if comments:
