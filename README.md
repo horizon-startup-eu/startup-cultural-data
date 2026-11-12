@@ -113,7 +113,7 @@ If you use this work, please cite:
 > **STARTUP (2025)**  
 > *startup-cultural-data: Art & Cultural Places — LAU/EPCI + Overture Maps → Leaflet Map* [Data set].  
 > *In Sustainable Transitions. Action Research and Training in Urban Perspective (STARTUP).*  
-> [https://github.com/Liistamo/cultural_data](https://github.com/Liistamo/cultural_data)
+> [https://github.com/horizon-startup-eu/startup-cultural-data](https://github.com/horizon-startup-eu/startup-cultural-data)
 
 Also acknowledge third-party data/software per `NOTICE` and `DATA-SOURCES-AND-METHODS.txt`.
 
