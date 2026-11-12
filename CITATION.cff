@@ -6,6 +6,10 @@ abstract: >
   places dataset from official boundaries (Eurostat GISCO, Etalab) and
   Overture Maps, with Leaflet-based visualization.
 authors:
+  - family-names: Borén
+    given-names: Thomas
+    email: Thomas.Boren@humangeo.su.se
+    affiliation: "Stockholm University, Department of Human Geography"
   - family-names: Liistamo
     given-names: Magnus
     email: magnus.liistamo@humangeo.su.se
@@ -30,6 +34,9 @@ preferred-citation:
   type: dataset
   title: "startup-cultural-data: Art & Cultural Places — LAU/EPCI + Overture Maps → Leaflet Map"
   authors:
+    - family-names: Borén
+      given-names: Thomas
+      affiliation: "Stockholm University, Department of Human Geography"
     - family-names: Liistamo
       given-names: Magnus
       affiliation: "Stockholm University, Department of Human Geography"
